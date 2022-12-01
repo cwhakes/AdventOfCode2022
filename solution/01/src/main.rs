@@ -15,11 +15,26 @@ fn main() {
 }
 
 fn get_answer1(input: &str) -> impl Display {
-	let _input = input;
-	0
+	let elves = input.split("\n\n");
+	elves
+		.map(|e| {
+			e.split_whitespace()
+				.map(|c| c.parse::<i64>().unwrap())
+				.sum::<i64>()
+		})
+		.max()
+		.unwrap()
 }
 
 fn get_answer2(input: &str) -> impl Display {
-	let _input = input;
-	0
+	let elves = input.split("\n\n");
+	let mut vec: Vec<_> = elves
+		.map(|e| {
+			e.split_whitespace()
+				.map(|c| c.parse::<i64>().unwrap())
+				.sum::<i64>()
+		})
+		.collect();
+	vec.sort_by_key(|c| -c);
+	vec[0] + vec[1] + vec[2]
 }
