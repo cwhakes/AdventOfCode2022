@@ -1,3 +1,5 @@
+#![allow(clippy::identity_op, clippy::single_char_pattern)]
+
 use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
