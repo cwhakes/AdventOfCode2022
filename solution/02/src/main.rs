@@ -15,11 +15,59 @@ fn main() {
 }
 
 fn get_answer1(input: &str) -> impl Display {
-	let _ = input;
-	0
+	let mut score = 0i64;
+	for strat in input.lines() {
+		let (op, me) = strat.split_once(" ").unwrap();
+		match op {
+			"A" => match me {
+				"X" => score += 3 + 1,
+				"Y" => score += 6 + 2,
+				"Z" => score += 0 + 3,
+				_ => {},
+			},
+			"B" => match me {
+				"X" => score += 0 + 1,
+				"Y" => score += 3 + 2,
+				"Z" => score += 6 + 3,
+				_ => {},
+			},
+			"C" => match me {
+				"X" => score += 6 + 1,
+				"Y" => score += 0 + 2,
+				"Z" => score += 3 + 3,
+				_ => {},
+			},
+			_ => {},
+		}
+	}
+	score
 }
 
 fn get_answer2(input: &str) -> impl Display {
-	let _ = input;
-	0
+	let mut score = 0i64;
+	for strat in input.lines() {
+		let (op, me) = strat.split_once(" ").unwrap();
+		match op {
+			"A" => match me {
+				"X" => score += 0 + 3,
+				"Y" => score += 3 + 1,
+				"Z" => score += 6 + 2,
+				_ => {},
+			},
+			"B" => match me {
+				"X" => score += 0 + 1,
+				"Y" => score += 3 + 2,
+				"Z" => score += 6 + 3,
+				_ => {},
+			},
+			"C" => match me {
+				"X" => score += 0 + 2,
+				"Y" => score += 3 + 3,
+				"Z" => score += 6 + 1,
+				_ => {},
+			},
+			_ => {},
+		}
+	}
+	score
 }
