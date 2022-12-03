@@ -12,53 +12,51 @@ fn main() {
 
 	let answer = get_answer2(&buf);
 	println!("{}", answer);
-
-	println!("{}", Shape::get_outcome(Shape::Scissors, Shape::Rock));
 }
 
 fn get_answer1(input: &str) -> impl Display {
-	let mut score = 0i32;
+	let mut score = 0u32;
 	for strat in input.lines() {
-		let (op, me) = strat.split_once(' ').unwrap();
+		let (op, me) = strat.split_once(' ').expect("Invalid strategy");
 		let op = match op {
 			"A" => Shape::Rock,
 			"B" => Shape::Paper,
 			"C" => Shape::Scissors,
-			_ => panic!(),
+			_ => panic!("Invalid opponent move"),
 		};
 		let me = match me {
 			"X" => Shape::Rock,
 			"Y" => Shape::Paper,
 			"Z" => Shape::Scissors,
-			_ => panic!(),
+			_ => panic!("Invalid move"),
 		};
-		score += Shape::get_outcome(op, me) + me as i32;
+		score += Shape::get_outcome(op, me) + me as u32;
 	}
 	score
 }
 
 fn get_answer2(input: &str) -> impl Display {
-	let mut score = 0i32;
+	let mut score = 0u32;
 	for strat in input.lines() {
-		let (op, me) = strat.split_once(' ').unwrap();
+		let (op, me) = strat.split_once(' ').expect("Invalid strategy");
 		let op = match op {
 			"A" => Shape::Rock,
 			"B" => Shape::Paper,
 			"C" => Shape::Scissors,
-			_ => panic!(),
+			_ => panic!("Invalid opponent move"),
 		};
 		let me = match me {
-			"X" => op.get_loser(),
-			"Y" => op.get_tier(),
-			"Z" => op.get_winner(),
-			_ => panic!(),
+			"X" => op.get_next().get_next(),
+			"Y" => op,
+			"Z" => op.get_next(),
+			_ => panic!("Invalid move"),
 		};
-		score += Shape::get_outcome(op, me) + me as i32;
+		score += Shape::get_outcome(op, me) + me as u32;
 	}
 	score
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy)]
 enum Shape {
 	Rock = 1,
@@ -67,36 +65,20 @@ enum Shape {
 }
 
 impl Shape {
-	fn get_outcome(op: Self, me: Self) -> i32 {
-		match (3 + me as i32 - op as i32) % 3 {
-			2 => 0,
-			0 => 3,
-			1 => 6,
+	fn get_outcome(op: Self, me: Self) -> u32 {
+		match (3 + me as u32 - op as u32) % 3 {
+			2 => 0, // Loser is 2 forward
+			0 => 3, // Tier is equal
+			1 => 6, // Winner is 1 forward
 			_ => unreachable!(),
 		}
 	}
 
-	fn get_loser(self) -> Self {
-		((self as i32 + 1) % 3 + 1).try_into().unwrap()
-	}
-
-	fn get_tier(self) -> Self {
-		((self as i32 - 1) % 3 + 1).try_into().unwrap()
-	}
-
-	fn get_winner(self) -> Self {
-		(self as i32 % 3 + 1).try_into().unwrap()
-	}
-}
-
-impl TryFrom<i32> for Shape {
-	type Error = ();
-	fn try_from(value: i32) -> Result<Self, Self::Error> {
-		match value {
-			1 => Ok(Self::Rock),
-			2 => Ok(Self::Paper),
-			3 => Ok(Self::Scissors),
-			_ => Err(()),
+	fn get_next(self) -> Self {
+		match self {
+			Self::Rock => Self::Paper,
+			Self::Paper => Self::Scissors,
+			Self::Scissors => Self::Rock,
 		}
 	}
 }
