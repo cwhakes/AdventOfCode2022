@@ -1,12 +1,12 @@
 use std::fmt::Display;
 
-static BUF: &'static str = include_str!("../../../input/03/input");
+static INPUT: &str = include_str!("../../../input/03/input");
 
 fn main() {
-	let answer = get_answer1(&BUF);
+	let answer = get_answer1(INPUT);
 	println!("{}", answer);
 
-	let answer = get_answer2(&BUF);
+	let answer = get_answer2(INPUT);
 	println!("{}", answer);
 }
 
