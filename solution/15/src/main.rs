@@ -63,7 +63,7 @@ impl Position {
 		self.x.abs_diff(other.x) + self.y.abs_diff(other.y)
 	}
 
-	fn border(& self, dist: u32) -> impl Iterator<Item = Self> + '_ {
+	fn border(&self, dist: u32) -> impl Iterator<Item = Self> + '_ {
 		let (x, y) = (self.x, self.y);
 		let radius = dist as i32 + 1;
 		(0..radius)
