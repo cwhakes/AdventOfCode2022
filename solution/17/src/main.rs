@@ -24,7 +24,7 @@ fn get_answer1(input: &str) -> impl Display {
 fn get_answer2(input: &str, magic_number: u128) -> impl Display {
 	let rocks: Vec<_> = ROCKS.split("\n\n").map(Rock::new).collect();
 	let mut gusts = input.trim().bytes().cycle();
-	let modulus = input.trim().len() as u128 * rocks.len() as u128 * magic_number;
+	let modulus = rocks.len() as u128 * magic_number;
 	let target = 1000000000000;
 	let remainder = target % modulus;
 
