@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_cast)]
+
 use std::fmt::Display;
 
 static INPUT: &str = include_str!("../../../input/05/input");

@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_cast)]
+
 use std::{collections::HashMap, fmt::Display};
 
 static INPUT: &str = include_str!("../../../input/08/input");
