@@ -1,4 +1,4 @@
-use std::{fmt::Display, collections::BTreeSet};
+use std::{collections::BTreeSet, fmt::Display};
 
 static INPUT: &str = include_str!("../../../input/17/input");
 static ROCKS: &str = include_str!("../../../input/17/rocks");
@@ -39,7 +39,7 @@ fn get_answer2(input: &str, magic_number: u128) -> impl Display {
 	}
 	let middle = shaft.highest() as u128 - beginning;
 
-	for i in 0..remainder as usize  {
+	for i in 0..remainder as usize {
 		shaft.drop_rock(&rocks[i % rocks.len()], &mut gusts);
 	}
 	let end = shaft.highest() as u128 - middle - beginning;
@@ -62,15 +62,24 @@ impl Point {
 	}
 
 	fn down(&self) -> Self {
-		Self { y: self.y - 1, x: self.x }
+		Self {
+			y: self.y - 1,
+			x: self.x,
+		}
 	}
 
 	fn left(&self) -> Self {
-		Self { y: self.y, x: self.x - 1 }
+		Self {
+			y: self.y,
+			x: self.x - 1,
+		}
 	}
 
 	fn right(&self) -> Self {
-		Self { y: self.y, x: self.x + 1 }
+		Self {
+			y: self.y,
+			x: self.x + 1,
+		}
 	}
 }
 
@@ -82,7 +91,10 @@ impl Rock {
 		for (y, line) in input.lines().rev().enumerate() {
 			for (x, c) in line.chars().enumerate() {
 				if c == '#' {
-					rock.push(Point {y: y as i128, x: x as i8 });
+					rock.push(Point {
+						y: y as i128,
+						x: x as i8,
+					});
 				}
 			}
 		}
@@ -99,14 +111,17 @@ impl Shaft {
 	}
 
 	fn starting_point(&self) -> Point {
-		Point { x: 2, y: self.highest() + 3 }
+		Point {
+			x: 2,
+			y: self.highest() + 3,
+		}
 	}
 
 	fn can_insert_rock(&self, rock: &Rock, offset: &Point) -> bool {
-		rock.0.iter().map(|p| p.offset(offset)).all(|p| {
-			0 <= p.x && p.x < 7 &&
-			0 <= p.y && !self.0.contains(&p)
-		})
+		rock.0
+			.iter()
+			.map(|p| p.offset(offset))
+			.all(|p| 0 <= p.x && p.x < 7 && 0 <= p.y && !self.0.contains(&p))
 	}
 
 	fn insert_rock(&mut self, rock: &Rock, offset: &Point) {
@@ -126,8 +141,8 @@ impl Shaft {
 					if self.can_insert_rock(rock, &loc.right()) {
 						loc = loc.right();
 					}
-				}
-				_ => panic!()
+				},
+				_ => panic!(),
 			}
 			if self.can_insert_rock(rock, &loc.down()) {
 				loc = loc.down();
@@ -138,8 +153,6 @@ impl Shaft {
 		}
 	}
 }
-
-
 
 #[cfg(test)]
 mod test {
