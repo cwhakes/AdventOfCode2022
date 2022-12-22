@@ -15,12 +15,11 @@ fn main() {
 
 fn get_answer1(input: &str) -> impl Display {
 	let map = Map::new(input);
-
-	let adjacencies = Adjacencies::new(&map.all_valves)
+	let openables = Openables::new(&map);
+	let adjacencies = Adjacencies::new(map.0.iter().map(|(n, v)| (n, &*v.adjacencies)))
 		.floyd_warshall()
 		.filter(|(a, b)| {
-			(a == *b"AA" || map.all_valves.get(&a).map_or(false, |v| v.flow_rate > 0))
-				&& map.all_valves.get(&b).map_or(false, |v| v.flow_rate > 0)
+			(a == b"AA" || openables.0.contains_key(a)) && openables.0.contains_key(b)
 		});
 
 	let mut frontier = BinaryHeap::new();
@@ -40,7 +39,7 @@ fn get_answer1(input: &str) -> impl Display {
 		if state.time > 0 {
 			frontier.extend(
 				state
-					.adjacencies(&map, &adjacencies)
+					.adjacencies(&openables, &adjacencies)
 					.map(|(state, new_pressure)| (current_pressure + new_pressure, state)),
 			);
 		}
@@ -51,12 +50,11 @@ fn get_answer1(input: &str) -> impl Display {
 
 fn get_answer2(input: &str) -> impl Display {
 	let map = Map::new(input);
-
-	let adjacencies = Adjacencies::new(&map.all_valves)
+	let openables = Openables::new(&map);
+	let adjacencies = Adjacencies::new(map.0.iter().map(|(n, v)| (n, &*v.adjacencies)))
 		.floyd_warshall()
 		.filter(|(a, b)| {
-			(a == *b"AA" || map.all_valves.get(&a).map_or(false, |v| v.flow_rate > 0))
-				&& map.all_valves.get(&b).map_or(false, |v| v.flow_rate > 0)
+			(a == b"AA" || openables.0.contains_key(a)) && openables.0.contains_key(b)
 		});
 
 	let mut frontier = BinaryHeap::new();
@@ -77,7 +75,7 @@ fn get_answer2(input: &str) -> impl Display {
 		if state.time_ele > 0 {
 			frontier.extend(
 				state
-					.adjacencies(&map, &adjacencies)
+					.adjacencies(&openables, &adjacencies)
 					.map(|(state, new_pressure)| (current_pressure + new_pressure, state)),
 			);
 		}
@@ -120,58 +118,68 @@ impl Valve {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct Map {
-	all_valves: HashMap<Name, Valve>,
-	openables: HashMap<Name, (i32, Valve)>,
-}
+struct Map(HashMap<Name, Valve>);
 
 impl Map {
 	fn new(input: &str) -> Self {
-		let valves: Vec<_> = input.lines().map(Valve::new).collect();
-		let all_valves = valves.iter().cloned().collect();
-		let openables = valves
+		Self(input.lines().map(Valve::new).collect())
+	}
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct Openables(HashMap<Name, (i32, Valve)>);
+
+impl Openables {
+	fn new(map: &Map) -> Self {
+		let openables = map
+			.0
 			.iter()
 			.filter(|(_name, v)| v.flow_rate > 0)
 			.enumerate()
 			.map(|(i, (name, v))| (*name, (i as i32, v.clone())))
 			.collect();
-		Self {
-			all_valves,
-			openables,
-		}
+		Self(openables)
 	}
 }
 
 #[derive(Debug)]
-struct Adjacencies(HashMap<Name, HashMap<Name, u16>>);
+struct Adjacencies<K>(HashMap<K, HashMap<K, u16>>);
 
-impl Adjacencies {
-	fn new<'a>(iter: impl IntoIterator<Item = (&'a Name, &'a Valve)>) -> Self {
-		let mut adjacencies: HashMap<Name, HashMap<Name, u16>> = HashMap::new();
-		for (from_name, valve) in iter {
-			for to_name in &valve.adjacencies {
-				adjacencies
-					.entry(*from_name)
-					.or_default()
-					.insert(*to_name, u16::from(from_name != to_name));
-			}
+impl<K> Adjacencies<K>
+where
+	K: Clone + std::hash::Hash + Eq,
+{
+	fn new<'a, I, II>(iter: II) -> Self
+	where
+		K: 'a,
+		I: IntoIterator<Item = &'a K>,
+		II: IntoIterator<Item = (&'a K, I)>,
+	{
+		let mut adjacencies: HashMap<K, HashMap<K, u16>> = HashMap::new();
+		for (from_name, iter_inner) in iter {
+			adjacencies.insert(
+				from_name.clone(),
+				std::iter::once((from_name.clone(), 0))
+					.chain(iter_inner.into_iter().map(|to_name| (to_name.clone(), 1)))
+					.collect(),
+			);
 		}
 		Self(adjacencies)
 	}
 
-	fn get(&self, (from_name, to_name): (Name, Name)) -> Option<u16> {
+	fn get(&self, (from_name, to_name): (&K, &K)) -> Option<u16> {
 		self.0
-			.get(&from_name)
-			.and_then(|sa| sa.get(&to_name))
+			.get(from_name)
+			.and_then(|sa| sa.get(to_name))
 			.copied()
 	}
 
 	fn floyd_warshall(mut self) -> Self {
-		let names: HashSet<Name> = self.0.keys().copied().collect();
-		for &k_name in &names {
-			let mut new: HashMap<Name, HashMap<Name, u16>> = HashMap::new();
-			for &from_name in &names {
-				for &to_name in &names {
+		let names: HashSet<K> = self.0.keys().cloned().collect();
+		for k_name in &names {
+			let mut new: HashMap<K, HashMap<K, u16>> = HashMap::new();
+			for from_name in &names {
+				for to_name in &names {
 					let old_cost = self.get((from_name, to_name));
 					let new_cost = self
 						.get((from_name, k_name))
@@ -182,9 +190,9 @@ impl Adjacencies {
 						(None, Some(n)) => Some(n),
 						(None, None) => None,
 					} {
-						new.entry(from_name)
+						new.entry(from_name.clone())
 							.or_default()
-							.insert(to_name, final_cost);
+							.insert(to_name.clone(), final_cost);
 					}
 				}
 			}
@@ -193,12 +201,14 @@ impl Adjacencies {
 		self
 	}
 
-	fn filter(self, mut f: impl FnMut((Name, Name)) -> bool) -> Self {
-		let mut new: HashMap<Name, HashMap<Name, u16>> = HashMap::new();
+	fn filter(self, mut f: impl FnMut((&K, &K)) -> bool) -> Self {
+		let mut new: HashMap<K, HashMap<K, u16>> = HashMap::new();
 		for (from_name, sub_adjacencies) in self.0 {
 			for (to_name, cost) in sub_adjacencies {
-				if f((from_name, to_name)) {
-					new.entry(from_name).or_default().insert(to_name, cost);
+				if f((&from_name, &to_name)) {
+					new.entry(from_name.clone())
+						.or_default()
+						.insert(to_name, cost);
 				}
 			}
 		}
@@ -224,43 +234,41 @@ impl State {
 
 	fn adjacencies<'a>(
 		&'a self,
-		map: &'a Map,
-		adjacencies: &'a Adjacencies,
+		openables: &'a Openables,
+		adjacencies: &'a Adjacencies<Name>,
 	) -> impl Iterator<Item = (Self, i32)> + 'a {
-		let adjacencies = adjacencies.0.get(&self.current_valve);
+		adjacencies
+			.0
+			.get(&self.current_valve)
+			.into_iter()
+			.flatten()
+			.filter_map(|(to_name, cost)| {
+				let (offset, valve) = openables.0.get(to_name).unwrap();
+				if !self.open_valves.contains_offset(*offset) {
+					let time = self.time.checked_sub(*cost)?.checked_sub(1)?;
+					let released = time as i32 * valve.flow_rate;
+					let mut open_valves = self.open_valves.clone();
+					open_valves.insert_offset(*offset);
 
-		std::iter::once((
-			Self {
-				time: 0,
-				..self.clone()
-			},
-			0,
-		))
-		.chain(
-			adjacencies
-				.into_iter()
-				.flatten()
-				.filter_map(|(to_name, cost)| {
-					let (offset, valve) = map.openables.get(to_name).unwrap();
-					if !self.open_valves.contains_offset(*offset) {
-						let time = self.time.checked_sub(*cost)?.checked_sub(1)?;
-						let released = time as i32 * valve.flow_rate;
-						let mut open_valves = self.open_valves.clone();
-						open_valves.insert_offset(*offset);
-
-						Some((
-							Self {
-								time,
-								current_valve: *to_name,
-								open_valves,
-							},
-							released,
-						))
-					} else {
-						None
-					}
-				}),
-		)
+					Some((
+						Self {
+							time,
+							current_valve: *to_name,
+							open_valves,
+						},
+						released,
+					))
+				} else {
+					None
+				}
+			})
+			.chain(std::iter::once((
+				Self {
+					time: 0,
+					..self.clone()
+				},
+				0,
+			)))
 	}
 }
 
@@ -284,83 +292,79 @@ impl State2 {
 
 	fn adjacencies<'a>(
 		&'a self,
-		map: &'a Map,
-		adjacencies: &'a Adjacencies,
+		openables: &'a Openables,
+		adjacencies: &'a Adjacencies<Name>,
 	) -> impl Iterator<Item = (Self, i32)> + 'a {
 		let adjacencies = adjacencies.0.get(&self.current_valve);
 
 		if self.time > 0 {
 			Choice::Left(
-				std::iter::once((
-					Self {
-						time: 0,
-						current_valve: *b"AA",
-						..self.clone()
-					},
-					0,
-				))
-				.chain(
-					adjacencies
-						.into_iter()
-						.flatten()
-						.filter_map(|(to_name, cost)| {
-							let (offset, valve) = map.openables.get(to_name).unwrap();
-							if !self.open_valves.contains_offset(*offset) {
-								let time = self.time.checked_sub(*cost)?.checked_sub(1)?;
-								let released = time as i32 * valve.flow_rate;
-								let mut open_valves = self.open_valves.clone();
-								open_valves.insert_offset(*offset);
+				adjacencies
+					.into_iter()
+					.flatten()
+					.filter_map(|(to_name, cost)| {
+						let (offset, valve) = openables.0.get(to_name).unwrap();
+						if !self.open_valves.contains_offset(*offset) {
+							let time = self.time.checked_sub(*cost)?.checked_sub(1)?;
+							let released = time as i32 * valve.flow_rate;
+							let mut open_valves = self.open_valves.clone();
+							open_valves.insert_offset(*offset);
 
-								Some((
-									Self {
-										time,
-										current_valve: if time != 0 { *to_name } else { *b"AA" },
-										open_valves,
-										..self.clone()
-									},
-									released,
-								))
-							} else {
-								None
-							}
-						}),
-				),
+							Some((
+								Self {
+									time,
+									current_valve: if time == 0 { *b"AA" } else { *to_name },
+									open_valves,
+									..self.clone()
+								},
+								released,
+							))
+						} else {
+							None
+						}
+					})
+					.chain(std::iter::once((
+						Self {
+							time: 0,
+							current_valve: *b"AA",
+							..self.clone()
+						},
+						0,
+					))),
 			)
 		} else {
 			Choice::Right(
-				std::iter::once((
-					Self {
-						time_ele: 0,
-						..self.clone()
-					},
-					0,
-				))
-				.chain(
-					adjacencies
-						.into_iter()
-						.flatten()
-						.filter_map(|(to_name, cost)| {
-							let (offset, valve) = map.openables.get(to_name).unwrap();
-							if !self.open_valves.contains_offset(*offset) {
-								let time_ele = self.time_ele.checked_sub(*cost)?.checked_sub(1)?;
-								let released = time_ele as i32 * valve.flow_rate;
-								let mut open_valves = self.open_valves.clone();
-								open_valves.insert_offset(*offset);
+				adjacencies
+					.into_iter()
+					.flatten()
+					.filter_map(|(to_name, cost)| {
+						let (offset, valve) = openables.0.get(to_name).unwrap();
+						if !self.open_valves.contains_offset(*offset) {
+							let time_ele = self.time_ele.checked_sub(*cost)?.checked_sub(1)?;
+							let released = time_ele as i32 * valve.flow_rate;
+							let mut open_valves = self.open_valves.clone();
+							open_valves.insert_offset(*offset);
 
-								Some((
-									Self {
-										time_ele,
-										current_valve: *to_name,
-										open_valves,
-										..self.clone()
-									},
-									released,
-								))
-							} else {
-								None
-							}
-						}),
-				),
+							Some((
+								Self {
+									time_ele,
+									current_valve: *to_name,
+									open_valves,
+									..self.clone()
+								},
+								released,
+							))
+						} else {
+							None
+						}
+					})
+					.chain(std::iter::once((
+						Self {
+							time_ele: 0,
+							..self.clone()
+						},
+						0,
+					))),
 			)
 		}
 	}
